@@ -1,0 +1,57 @@
+{
+  "Initial": {}, 
+  "Goal": {
+    "wooden_pickaxe": 1
+  },
+  "Items": [
+    "bench", 
+    "plank",  
+    "wood", 
+    "wooden_pickaxe"
+  ], 
+  "Recipes": {
+
+    "craft wooden_pickaxe at bench": {
+
+    "Produces": {
+        "wooden_pickaxe": 1
+      }, 
+      "Requires": {
+        "bench": true
+      }, 
+      "Consumes": {
+        "plank": 3, 
+        "stick": 2
+      }, 
+      "Time": 1
+    }, 
+   
+    "craft bench": {
+      "Produces": {
+        "bench": 1
+      }, 
+      "Consumes": {
+        "plank": 4
+      }, 
+      "Time": 1
+    },
+
+    "craft plank": {
+      "Produces": {
+        "plank": 4
+      }, 
+      "Consumes": {
+        "wood": 1
+      }, 
+      "Time": 1
+    }, 
+    
+    "punch for wood": {
+      "Produces": {
+        "wood": 1
+      }, 
+      "Time": 4
+    } 
+   
+  }
+}
