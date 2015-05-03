@@ -94,21 +94,33 @@ def make_effector(rule):
 	def effect(state): # to a list, then to dict, change value, and then reverse
        # this code runs millions of times
 		next_state = state
-		items = list(state[1]) # (name, count)
+		item_list = list(state[1]) # (name, count)
+		items = dict(item_list)
+		print items
 		gone = []
 
 		for c in con:
-			for each_item in items:
-				if c in each_item[0]:
-					#print each_item[1] , "and ", con[c]
-					value = list(each_item)
-					value[1] = each_item[1] - con[c]
-					each_item = tuple(value)
-					#each_item[1] -= con[c]
-					if each_item[1] == 0:
-						gone.append(each_item)
-
-		next_state = (state[0], items.items())
+			if c in items:
+				items[c] = items[c] - con[c]
+				if items[c] == 0:
+					gone.append(c)
+				elif items[c] < 0:
+					print "Error: not enough ", c, " to produce effect"
+			else:
+				print "Error: ", c, " not in this effect"
+		
+		#add produced items to new state
+		for p in pro:
+			if p in items:
+				items[p] += pro[p]
+			else:
+				items[p] = pro[p]
+		
+		#remove values that you no longer have any of
+		for item in gone:
+			del items[item]
+			
+		next_state = (state[0], tuple(items.items()))
 		
 		return next_state
 
@@ -118,10 +130,11 @@ def make_effector(rule):
 	pro = rule.get('Produces', [])  
 
 
-	tempState = ( 10 , [('plank', 4), ('wood', 1)])	  
+	tempState = ( 10 , [('plank', 3), ('wood', 1)])	  
 
 	test = effect(tempState)
-  	
+	print test
+	
 	return effect
 
 
