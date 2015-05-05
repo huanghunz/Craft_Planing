@@ -1,10 +1,14 @@
 
 
 from collections import namedtuple
+import time
+TIME_LIMIT = 30
 try:
     import Queue as Q  # ver. < 3.0
 except ImportError:
     import queue as Q
+
+
 
 # # List of items that can be in your inventory:
 # print Crafting['Items']
@@ -31,10 +35,11 @@ except ImportError:
 # }
 
 
-#Where are make_checker and make_effector defined? You have to do that as well:
 all_recipes = []
 Crafting = None
 
+
+#Where are make_checker and make_effector defined? You have to do that as well:
 def make_checker(rule):
 	con = rule.get('Consumes', [])
 	req = rule.get('Requires', [])  
@@ -96,9 +101,7 @@ def make_effector(rule):
 		item_list = list(state[1]) # (name, count)
 		items = dict(item_list)
 		gone = []
-
 	
-
 		for c in con:
 			if c in items:
 				items[c] = items[c] - con[c]
@@ -113,11 +116,9 @@ def make_effector(rule):
 		#add produced items to new state
 		for p in pro:
 			if p in items:
-
 				items[p] += pro[p]
 			else:
 				items[p] = pro[p]
-		
 		
 		#remove values that you no longer have any of
 		for item in gone:
@@ -139,59 +140,66 @@ def search(graph, initial, is_goal, limit, heuristic):
 	total_cost = 0
 	plan = []
 	prev = {initial: None}
-	recs = {initial: None}
-	#prevRecipe = {initial: None}
+	step = {initial: None}
+
 	priorityQueue = Q.PriorityQueue()
 
 	priorityQueue.put(initial)
 
-	#state(5, (('a', 1), ('b', 2)))
+	t_now = time.time()
+	t_deadline = t_now + TIME_LIMIT
+
 
 	run = 0
-	while not priorityQueue.empty() and run < limit:
+	while not priorityQueue.empty() and t_now < t_deadline:
 		currState = priorityQueue.get()
 
 		if is_goal(currState):
-
-			#build path
-			while currState:
-				plan.append(currState)
-				#plan.append((currState, recs[currState]))
-				currState = prev[currState]
-
-			plan.reverse()
 			break
 
+		# getting a list of possible states
 		adj = graph(currState)
 
 		for state in adj:
 			if state[0] not in prev: # or node[0] < heuristic(node) : #heuristic
 				priorityQueue.put(state[0])
 				prev[state[0]] = currState
-				recs[state[0]] = state[1]
+				step[state[0]] = state[1]
 
 		run += 1
+		t_now = time.time()
 
+	
+	if t_now > t_deadline:
+		print "time out"
+		total_cost = -1
 
+	else: 
+		#build path
+		total_cost = currState[0]
+		while currState:
+			#plan.append(currState) # appending the inventory of each state
+			#plan.append((currState, step[currState])) # appending the invertory and each step
+			plan.append(step[currState]) # appending each step 
+			currState = prev[currState]
 
-	total_cost = plan[-1][0]
-
+		plan.reverse()
+		plan.remove(step[initial])
+		
 	return total_cost, plan
 
 
 def t_graph(state):
-	#print " in graph ==== "
+	
 	adj = []
 	for recipe in all_recipes:
 		if recipe[1](state):
-			#print state
 			newState = recipe[2](state)
 			newState = (newState[0] + recipe[3], newState[1])
-			adj.append((newState, recipe[0]))
+			adj.append((newState, recipe[0])) # returning the step of the plan
 	return adj
 
 def t_is_goal(state):
-	#print "in goal"
 	item_list = list(state[1]) # (name, count)
 	items = dict(item_list)
 
@@ -203,7 +211,6 @@ def t_is_goal(state):
 	return True
 
 def t_heuristic(state):
-	print " in heuristic"
 	return 0
 
 
@@ -211,7 +218,6 @@ if __name__ ==  '__main__':
 	import json
 	with open('Crafting.json') as f:
 		Crafting = json.load(f)
-
 
 	Recipe = namedtuple('Recipe',['name','check','effect','cost'])
 
@@ -221,27 +227,21 @@ if __name__ ==  '__main__':
 		recipe = Recipe(action, checker, effector, rule['Time'])
 		all_recipes.append(recipe)
 	
-
-	#t_initial = 'a'
-	#t_limit = 20
-	#edges = {'a': {'b':1,'c':10}, 'b':{'c':1}}
-
 	#Crafting['Initial'] = {'bench': 1, 'plank': 3, 'stick': 2}
 	Crafting['Goal'] =  {'furnace': 1}
 
 	initState = (0, tuple(Crafting['Initial'].items()))
 
-	#print t_is_goal(initState)
-	#print all_recipes[0][1](initState)
-
-	stuff, a_list = search (t_graph, initState, t_is_goal, float("inf"), t_heuristic)
-
-	print stuff
-	for rec in a_list:
-		print rec
-	print len(a_list)
+	total_cost, plan = search (t_graph, initState, t_is_goal, float("inf"), t_heuristic)
 
 	print "Done"
+	print "Goal is: ", Crafting['Goal']
+	print "Cost is: ", total_cost
+	print "Plan is: "
+	for step in plan:
+		print step
+	print "Total steps: ",len(plan) 
+
 
 
 
