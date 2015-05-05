@@ -39,7 +39,7 @@ def make_checker(rule):
 	con = rule.get('Consumes', [])
 	req = rule.get('Requires', [])  
    
-	def check(state):
+	def check(oState):
 		"""
 		Check if the inventory/state contains the items, 
 		If tool requirement is met, check Consumes items, 
@@ -49,12 +49,11 @@ def make_checker(rule):
         # this code runs millions of times
 		
 		found =  False
-		item_list =  list(state[1])
-		items = dict(item_list)
-
+		state = oState
+	
 		for r in req:
 			found = False
-			if r in items:
+			if r in state:
 				found = True
 
 			if not found:
@@ -62,8 +61,8 @@ def make_checker(rule):
 
 		for c in con:
 			found = False
-			if c in items:
-				if con[c] <= items[c]:
+			if c in state:
+				if con[c] <= state[c]:
 					found = True
 			if not found:
 				return False
@@ -90,21 +89,16 @@ def make_effector(rule):
 	"""
 		
 	"""
-	def effect(state): # to a list, then to dict, change value, and then reverse
+	def effect(oState): # to a list, then to dict, change value, and then reverse
        # this code runs millions of times
-		next_state = state
-		item_list = list(state[1]) # (name, count)
-		items = dict(item_list)
 		gone = []
-
-	
-
+		state = oState;
 		for c in con:
-			if c in items:
-				items[c] = items[c] - con[c]
-				if items[c] == 0:
+			if c in state:
+				state[c] = state[c] - con[c]
+				if state[c] == 0:
 					gone.append(c)
-				elif items[c] < 0:
+				elif state[c] < 0:
 					print "Error: not enough ", c, " to produce effect"
 			else:
 				print "Error: ", c, " not in this effect"
@@ -112,20 +106,19 @@ def make_effector(rule):
 		
 		#add produced items to new state
 		for p in pro:
-			if p in items:
+			if p in state:
 
-				items[p] += pro[p]
+				state[p] += pro[p]
 			else:
-				items[p] = pro[p]
+				state[p] = pro[p]
 		
 		
 		#remove values that you no longer have any of
 		for item in gone:
-			del items[item]
-			
-		next_state = (state[0], tuple(items.items()))
+			del state[item]
+
 		
-		return next_state
+		return state
 
 	# this code runs once
 	# do something with rule['Produces'] and rule['Consumes']
@@ -182,11 +175,17 @@ def search(graph, initial, is_goal, limit, heuristic):
 def t_graph(state):
 	#print " in graph ==== "
 	adj = []
+	item_list = list(state[1])
+	items = dict(item_list)
 	for recipe in all_recipes:
-		if recipe[1](state):
+		if recipe[1](items):
+			print "checking"
 			#print state
-			newState = recipe[2](state)
-			newState = (newState[0] + recipe[3], newState[1])
+
+			print "items: ", tuple(items)
+
+			newItems = recipe[2](items)
+			newState = (state[0] + recipe[3], tuple(newItems))
 			adj.append((newState, recipe[0]))
 	return adj
 
@@ -227,7 +226,7 @@ if __name__ ==  '__main__':
 	#edges = {'a': {'b':1,'c':10}, 'b':{'c':1}}
 
 	#Crafting['Initial'] = {'bench': 1, 'plank': 3, 'stick': 2}
-	Crafting['Goal'] =  {'furnace': 1}
+	Crafting['Goal'] =  {'plank': 1}
 
 	initState = (0, tuple(Crafting['Initial'].items()))
 
