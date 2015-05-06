@@ -152,7 +152,7 @@ def search(graph, initial, is_goal, limit, heuristic):
 
 
 	run = 0
-	while not priorityQueue.empty() and t_now < t_deadline:
+	while not priorityQueue.empty():# and t_now < t_deadline:
 		currState = priorityQueue.get()
 
 		if is_goal(currState):
@@ -172,10 +172,10 @@ def search(graph, initial, is_goal, limit, heuristic):
 		t_now = time.time()
 
 	
-	if t_now > t_deadline:
-		print "time out"
-		print currState
-		total_cost = -1
+	#if t_now > t_deadline:
+	#	print "time out"
+	#	print currState
+	#	total_cost = -1
 
 	else: 
 		#build path
@@ -363,7 +363,7 @@ def t_heuristic(state):
 	for item in items:
 		#print item
 		if item in maxes and items[item] > maxes[item]:
-			return 50
+			return float("inf")
 
 
 	return 0
@@ -395,20 +395,46 @@ if __name__ ==  '__main__':
 			if r not in maxes or maxes[r] < req[r]:
 				maxes[r] = req[r]
 
+		for p in pro:
+			if p not in maxes or maxes[p] < pro[p]:
+				maxes[p] = pro[p]
+
 		key = pro.keys()[0]
 		recipe_dict.setdefault(key, [])
 
 		recipe_dict[key].append((action, pro, req, con, cost))
 
+	#make the maxes by going through each object and adding the max produced and max cost
+
+	produces_dict = {}
+
+	for item in maxes:
+		cmax = 1
+		pmax = 0
+		for thing, rule in Crafting['Recipes'].items():
+			pro = rule.get('Produces', [])
+			con = rule.get('Consumes', [])
+			if item in pro and pmax < pro[item]:
+				pmax = pro[item]
+				produces_dict[item] = pmax
+			if item in con and cmax < con[item]:
+				cmax = con[item]
+		maxes[item] = cmax + pmax -1
 	#print recipe_dict['wood']
 	
-	#Crafting['Initial'] = {'bench': 1, 'plank': 3, 'stick': 2}
-	Crafting['Goal'] =  { 'rail':1}
+	#print produces_dict
+
+	Crafting['Initial'] = {}
+	Crafting['Goal'] =  {'iron_pickaxe': 1}
 
 	for g in Crafting['Goal']:
+		while maxes[g] < Crafting['Goal'][g]:
+			maxes[g] = maxes[g] + produces_dict[g]
 
-		if g in maxes and Crafting['Goal'][g] > maxes[g]:
-			maxes[g] = Crafting['Goal'][g]
+	for i in Crafting['Initial']:
+
+		if i in maxes and Crafting['Initial'][i] > maxes[i]:
+			maxes[i] = Crafting['Initial'][i]
 
 	for m in maxes:
 		print m, ' ', maxes[m]
