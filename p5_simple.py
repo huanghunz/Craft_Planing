@@ -53,25 +53,13 @@ def make_checker(rule):
 		"""
 		# checking if the state has all the requirement
         # this code runs millions of times
-		
-		found =  False
-		item_list =  list(state[1])
-		items = dict(item_list)
 
 		for r in req:
-			found = False
-			if r in items:
-				found = True
-
-			if not found:
+			if r not in state[1]:
 				return False
 
 		for c in con:
-			found = False
-			if c in items:
-				if con[c] <= items[c]:
-					found = True
-			if not found:
+			if c not in state[1] or con[c] > state[1][c]:
 				return False
 
 		return True
@@ -98,20 +86,18 @@ def make_effector(rule):
 	"""
 	def effect(state): # to a list, then to dict, change value, and then reverse
        # this code runs millions of times
-		next_state = state
-		item_list = list(state[1]) # (name, count)
-		items = dict(item_list)
+		items = copy.copy(state[1])
 		gone = []
 	
 		for c in con:
-			if c in items:
-				items[c] = items[c] - con[c]
-				if items[c] == 0:
-					gone.append(c)
-				elif items[c] < 0:
-					print "Error: not enough ", c, " to produce effect"
-			else:
-				print "Error: ", c, " not in this effect"
+			#if c in items:
+			items[c] = items[c] - con[c]
+			if items[c] == 0:
+				del items[c]
+			# 	elif items[c] < 0:
+			# 		print "Error: not enough ", c, " to produce effect"
+			# else:
+			# 	print "Error: ", c, " not in this effect"
 				
 		
 		#add produced items to new state
@@ -120,12 +106,9 @@ def make_effector(rule):
 				items[p] += pro[p]
 			else:
 				items[p] = pro[p]
-		
-		#remove values that you no longer have any of
-		for item in gone:
-			del items[item]
+	
 			
-		next_state = (state[0], tuple(items.items()))
+		next_state = (state[0], items)
 		
 		return next_state
 
@@ -155,18 +138,21 @@ def search(graph, initial, is_goal, limit, heuristic):
 	while not priorityQueue.empty():# and t_now < t_deadline:
 		currState = priorityQueue.get()
 
-		if is_goal(currState):
+		currStateDict =  dict(list(currState[1]))
+
+		if is_goal(currStateDict):
 			break
 
 		# getting a list of possible states
-		adj = graph(currState)
+		adj = graph((currState[0], currStateDict))
 
 		for state in adj:
-			if state[0] not in prev : #heuristic
-				state = ((state[0][0] + heuristic(state[0]), state[0][1]), state[1] )
-				priorityQueue.put(state[0])
-				prev[state[0]] = currState
-				step[state[0]] = state[1]
+			if heuristic(state[0][1]) == 0:
+				state = ((state[0][0], tuple(state[0][1].items())), state[1] )
+				if state[0] not in prev: 
+					priorityQueue.put(state[0])
+					prev[state[0]] = currState
+					step[state[0]] = state[1]
 
 		run += 1
 		t_now = time.time()
@@ -177,17 +163,17 @@ def search(graph, initial, is_goal, limit, heuristic):
 	#	print currState
 	#	total_cost = -1
 
-	else: 
+	#else: 
 		#build path
-		total_cost = currState[0]
-		while currState:
-			#plan.append(currState) # appending the inventory of each state
-			#plan.append((currState, step[currState])) # appending the invertory and each step
-			plan.append(step[currState]) # appending each step 
-			currState = prev[currState]
+	total_cost = currState[0]
+	while currState:
+		#plan.append(currState) # appending the inventory of each state
+		#plan.append((currState, step[currState])) # appending the invertory and each step
+		plan.append(step[currState]) # appending each step 
+		currState = prev[currState]
 
-		plan.reverse()
-		plan.remove(step[initial])
+	plan.reverse()
+	plan.remove(step[initial])
 		
 	return total_cost, plan
 
@@ -332,13 +318,11 @@ def b_graph(state):
 
 
 def t_is_goal(state):
-	item_list = list(state[1]) # (name, count)
-	items = dict(item_list)
 
 	goals = Crafting['Goal']
 
 	for goal in goals:
-		if goal not in items or items[goal] < goals[goal]:
+		if goal not in state or state[goal] < goals[goal]:
 			return False
 	return True
 
@@ -357,12 +341,10 @@ def b_is_goal(state):
 
 
 def t_heuristic(state):
-	item_list = list(state[1]) # (name, count)
-	items = dict(item_list)
 
-	for item in items:
+	for item in state:
 		#print item
-		if item in maxes and items[item] > maxes[item]:
+		if item in maxes and state[item] > maxes[item]:
 			return float("inf")
 
 
@@ -425,7 +407,7 @@ if __name__ ==  '__main__':
 	#print produces_dict
 
 	Crafting['Initial'] = {}
-	Crafting['Goal'] =  {'iron_pickaxe': 1}
+	Crafting['Goal'] =  {'cart': 1}
 
 	for g in Crafting['Goal']:
 		while maxes[g] < Crafting['Goal'][g]:
