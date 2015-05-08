@@ -33,7 +33,7 @@ except ImportError:
 # }
 
 
-all_recipes = []
+all_recipes = {}
 recipe_dict = Counter()
 Crafting = None
 
@@ -119,6 +119,66 @@ def make_effector(rule):
 	
 	return effect
 
+def recipe_pruner(state):
+	recs = copy.copy(all_recipes)
+
+	#first remove redundant recipes
+	if 'iron_axe' in state:
+		del recs['punch for wood']
+		del recs['wooden_axe for wood']
+		del recs['stone_axe for wood']
+		#remove the less efficient axes if not in goal
+		if 'iron_axe' not in Crafting['Goal']:
+			del recs['craft iron_axe at bench']
+		if 'stone_axe' not in Crafting['Goal']:
+			del recs['craft stone_axe at bench']
+		if 'wooden_axe' not in Crafting['Goal']:
+			del recs['craft wooden_axe at bench']
+
+	elif 'stone_axe' in state:
+		del recs['punch for wood']
+		del recs['wooden_axe for wood']
+		if 'stone_axe' not in Crafting['Goal']:
+			del recs['craft stone_axe at bench']
+		if 'wooden_axe' not in Crafting['Goal']:
+			del recs['craft wooden_axe at bench']
+	elif 'wooden_axe' in state:
+		del recs['punch for wood']
+		if 'wooden_axe' not in Crafting['Goal']:
+			del recs['craft wooden_axe at bench']
+
+	if 'iron_pickaxe' in state:
+		del recs['wooden_pickaxe for cobble']
+		del recs['wooden_pickaxe for coal']
+		del recs['stone_pickaxe for cobble']
+		del recs['stone_pickaxe for coal']
+		del recs['stone_pickaxe for ore']
+		if 'iron_pickaxe' not in Crafting['Goal']:
+			del recs['craft iron_pickaxe at bench']
+		if 'stone_pickaxe' not in Crafting['Goal']:
+			del recs['craft stone_pickaxe at bench']
+		if 'wooden_pickaxe' not in Crafting['Goal']:
+			del recs['craft wooden_pickaxe at bench']
+	elif 'stone_pickaxe' in state:
+		del recs['wooden_pickaxe for cobble']
+		del recs['wooden_pickaxe for coal']
+		if 'stone_pickaxe' not in Crafting['Goal']:
+			del recs['craft stone_pickaxe at bench']
+		if 'wooden_pickaxe' not in Crafting['Goal']:
+			del recs['craft wooden_pickaxe at bench']
+	elif 'wooden_pickaxe' in state and 'wooden_pickaxe' not in Crafting['Goal']:
+		del recs['craft wooden_pickaxe at bench']	
+
+	#remove tools that aren't necessary to have more than 1 of
+	if 'bench' in state and 'bench' not in Crafting['Goal']:
+		del recs['craft bench']
+
+	if 'furnace' in state and 'furnace' not in Crafting['Goal']:
+		del recs['craft furnace at bench']	
+
+
+
+	return recs
 
 def search(graph, initial, is_goal, limit, heuristic):
 	total_cost = 0
@@ -138,13 +198,14 @@ def search(graph, initial, is_goal, limit, heuristic):
 	while not priorityQueue.empty():# and t_now < t_deadline:
 		currState = priorityQueue.get()
 
-		currStateDict =  dict(list(currState[1]))
+		currStateDict = dict(list(currState[1]))
 
 		if is_goal(currStateDict):
 			break
 
+		valid_recs = recipe_pruner(currStateDict)
 		# getting a list of possible states
-		adj = graph((currState[0], currStateDict))
+		adj = graph((currState[0], currStateDict), valid_recs)
 
 		for state in adj:
 			if heuristic(state[0][1]) == 0:
@@ -236,14 +297,14 @@ def search_backward(graph, initial, is_goal, limit, heuristic):
 	return total_cost, plan
 
 
-def t_graph(state):
+def t_graph(state, recs):
 	
 	adj = []
-	for recipe in all_recipes:
-		if recipe[1](state):
-			newState = recipe[2](state)
-			newState = (newState[0] + recipe[3], newState[1])
-			adj.append((newState, recipe[0])) # returning the step of the plan
+	for recipe in recs.items():
+		if recipe[1][1](state):
+			newState = recipe[1][2](state)
+			newState = (newState[0] + recipe[1][3], newState[1])
+			adj.append((newState, recipe[1][0])) # returning the step of the plan
 	return adj
 
 def b_graph(state):
@@ -361,8 +422,9 @@ if __name__ ==  '__main__':
 	for action, rule in Crafting['Recipes'].items():
 		checker = make_checker(rule)
 		effector = make_effector(rule)
-		recipe = Recipe(action, checker, effector, rule['Time'])
-		all_recipes.append(recipe)
+		all_recipes[action] = ((action, checker, effector, rule['Time']))
+		#recipe = Recipe(action, checker, effector, rule['Time'])
+		#all_recipes.append(recipe)
 
 		pro = rule.get('Produces', [])
 		con = rule.get('Consumes', [])
