@@ -134,7 +134,6 @@ def recipe_pruner(state):
 			del recs['craft stone_axe at bench']
 		if 'wooden_axe' not in Crafting['Goal']:
 			del recs['craft wooden_axe at bench']
-
 	elif 'stone_axe' in state:
 		del recs['punch for wood']
 		del recs['wooden_axe for wood']
@@ -176,7 +175,23 @@ def recipe_pruner(state):
 	if 'furnace' in state and 'furnace' not in Crafting['Goal']:
 		del recs['craft furnace at bench']	
 
+	#remove the recipes that only craft dead end objects if they're not relevant
+	if 'cart' in Crafting['Goal'] and 'cart' in state and Crafting['Goal']['cart'] <= state['cart'] :
+		del recs['craft cart at bench']
+	if 'rail' in Crafting['Goal'] and 'rail' in state and Crafting['Goal']['rail'] <= state['rail']:
+		del recs['craft rail at bench']
 
+	#remove recipes that create materials that only create tools that we no longer need
+	#cobble
+	if 'craft furnace at bench' not in recs and 'craft stone_pickaxe at bench' not in recs and 'craft stone_axe at bench' not in recs and 'cobble' not in Crafting['Goal']:
+		del recs['iron_pickaxe for cobble']
+		if 'stone_pickaxe for cobble' in recs:
+			del recs['stone_pickaxe for cobble']
+		if 'wooden_pickaxe for cobble' in recs:
+			del recs['wooden_pickaxe for cobble']
+
+	# stick and ingot can also be pruned, however the checks for stick make the pruner take longer than the actual time benefit
+	# and ingots take too many checks and are too close to being dead ends to be worth the time it takes to prune
 
 	return recs
 
@@ -484,6 +499,12 @@ if __name__ ==  '__main__':
 		print m, ' ', maxes[m]
 
 	initState = (0, tuple(Crafting['Initial'].items()))
+
+	#remove the recipes that only craft dead end objects if they're not relevant
+	if 'cart' not in Crafting['Goal']:
+		del all_recipes['craft cart at bench']
+	if 'rail' not in Crafting['Goal']:
+		del all_recipes['craft rail at bench']
 
 	startTime = time.time()
 
